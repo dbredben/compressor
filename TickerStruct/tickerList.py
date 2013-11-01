@@ -1,6 +1,6 @@
 import sys
 
-import TickerStruct
+import tickerStruct
 
 class Node(object):
 
@@ -22,11 +22,11 @@ class Node(object):
         self.rightNode = None
 
 
-class TickerList(TickerStruct.TickerStruct):
+class TickerList(tickerStruct.TickerStruct):
 
     def __init__(self):
         '''
-        A link list data struct used to build the ticker dictionary
+        A link list data struct used to build the ticker dictionary.
 
         Parameters:
             None
