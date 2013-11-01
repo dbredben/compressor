@@ -1,0 +1,81 @@
+Dependency inversion= Derek Bredbenner's BAT Compressor
+
+== Compression works the following steps (see Compressed File Format):
+
+1. Reads the tickers from the BAT file and counts the number of lines.
+
+2. Adds the tickers to the TickerStruct class. 
+
+3. Builds the Ticker Dictionary using the TickerStruct class.
+
+4. Encodes the Ticker Dictionary and header information.
+
+5. Reads the lines from the BAT file and encodes the line information. The tickers are encoded
+   by the Ticker Dictionary. Header information and condition flags are used to determine byte
+   memory size used for encoding the line information.
+
+== Decompression works the following steps:
+
+1. Checks the compressed file's file identifier.
+
+2. Reads the compressed file and decodes the header information.
+
+3. Continues reading the compressed file and decodes the line information. The tickers are decoded
+   by the Ticker Dictionary. Header information and condition flags are used to determine byte
+   memory size used for decoding the line information.
+
+== Ticker Dictionary
+
+The Ticker Dictionary is a sorted, memory sequenced array of unique tickers. The application reading the BAT file will find the tickers' encode value by performing a binary search in the Ticker Dictionary. A matched compare in the Ticker Dictionary will return the Ticker Dictionary's index which is used as the encoded ticker value.
+
+The application also uses the Ticker Dictionary during decompression by reading in the encoded ticker and returning the ticker's string value. The encoded ticker is used to index the Ticker Dictionary with the corresponding string value.
+
+== TickerStruct Class Hierarchy
+
+The TickerStruct class is the top level abstraction class of a hierarchy used for handling tickers and creating the Ticker Dictionary. The class hierarchy consist of two derived concrete classes; the TickerList class and the PythonDict class.
+
+The TickerList class uses a linked list data struct to add tickers read from the BAT file and keep in string value order. The first added ticker becomes an anchor where other added tickers compare their string values. String values less than the anchor value are shifted to the left while greater values are shifted to the right. The added tickers continue to be compared and shifted until added to the TickerList in the right order. Duplicate tickers are no added. The TickerList class then iterates through the tickers and appends them to the Ticker Dictionary. 
+
+The PythonDict class uses the Python dictionary container to handle tickers read from the BAT file. It also sorts and appends the collected tickers to the Ticker Dictionary.
+
+The application instantiates a derived TickerStruct class using a TickerStruct factory class. The application uses the TickerStruct class as an interface to the instantiated object.
+
+== Condition Flags
+Condition Flags uses the following format (based on signed char):
+
+1. Bits #7,#6:    time difference's byte memory size
+
+2. Bits #5,#4:    size's byte memory size
+
+3. Bits #3,#2,#1: price precision (number of digits right of the decimal point) 
+
+
+.Compressed File Format
+|=======================
+|Variable                           |Description                                       |Format     |Memory Size (bytes)
+|Header                             |                                                  |           |
+|file identifier                    |identifies application's compressed file          |int        | 2
+|line number                        |BAT file's number of lines                        |int        | 4
+|encoded ticker memory size         |memory size needed for encoded ticker             |int        | 2
+|Ticker Dictionary size             |memory size needed for Ticker Dictionary          |int        | 2
+|Ticker Dictionary element #1 size  |size of Ticker Dictionary's first ticker          |int        | 1
+|Ticker Dictionary element #1       |Ticker Dictionary's first ticker                  |string     | Ticker Dictionary element #1 size
+|Ticker Dictionary element #2 size  |size of Ticker Dictionary's second ticker         |int        | 1
+|Ticker Dictionary element #2       |Ticker Dictionary's second ticker                 |string     | Ticker Dictionary element #2 size 
+|...                                |                                                  |           |
+|Ticker Dictionary element #n size  |size of Ticker Dictionary's last ticker           |int        | 1
+|Ticker Dictionary element #n       |Ticker Dictionary's last ticker                   |string     | Ticker Dictionary element #n size
+|                                   |                                                  |           |
+|Records (per line)                 |                                                  |           |
+|condition flags                    |sets line's byte memory size and price precision  |int        | 1
+|encoded ticker                     |ticker encoded by Ticker Dictionary               |int        | 1/2/4 (based on encoded ticker memory size)
+|exchange                           |exchange posting the event                        |char       | 1
+|side                               |type of event (B/b/A/a/T)                         |char       | 1
+|condition                          |type of quote or trade                            |char       | 1
+|sendtime                           |time at which event occurred on exchange          |int        | 4
+|time difference                    |time difference between sendtime and recvtime     |int        | 1/2/4 (based on condition flag)
+|price                              |price on the event                                |int/float  | 4 (based on condition flag)
+|size                               |number of shares on the event                     |int        | 1/2/4 (based on condition flag)
+|=======================
+
+
